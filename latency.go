@@ -1,19 +1,17 @@
 /*
 Package latency provides an easy way to create latency histograms and generate graphs.
 
-Example that creates a histogram with 10 buckets and records an event that took 16ms.
+Example that creates a histogram with 10 buckets and records an event that took 16ms (16000us).
 
-b := make(Buckets, 10)
+b := make(Buckets, 20)
 
 b.Record(16 * time.Millisecond)
 
 b.Plot("test.svg"))
 
-10 buckets is good for tracking latency from 0ms to 1s.
-Even if too few buckets are specified, new buckets will be added as needed.
+20 buckets is good for tracking latency from 0us to 1s. Buckets are created in a scale of powers of
+2. Even if too few buckets are specified, new buckets will be added as needed.
 
-Minimum resolution: 1 millisecond.
-Scale: powers of 2.
 */
 package latency
 
@@ -27,14 +25,25 @@ import (
 	"code.google.com/p/plotinum/plotter"
 )
 
+// Resolution can be changed if the latency tracking should happen at lower or right resolution than
+// the default of 1 Millisecond.
+// TODO(nictuku): Merge with Buckets.
+var Resolution = time.Millisecond
+
 type Buckets []int
 
 func (b *Buckets) Record(d time.Duration) {
-	ms := float64(d.Nanoseconds() / 1e6)
-	bucket := int(math.Ceil(math.Log2(ms)))
-	if len(*b) < bucket+1 {
-		// Extend the slice.
-		*b = append(*b, make(Buckets, bucket+1-len(*b))...)
+	var bucket int
+	if d < Resolution {
+		// Avoid getting to log2(0) = -Inf.
+		bucket = 0
+	} else {
+		f := float64(d / Resolution)
+		bucket = int(math.Ceil(math.Log2(f)))
+		if len(*b) < bucket+1 {
+			// Extend the slice.
+			*b = append(*b, make(Buckets, bucket+1-len(*b))...)
+		}
 	}
 	(*b)[bucket]++
 }
@@ -56,7 +65,7 @@ func (b *Buckets) Plot(filePath string) error {
 		return fmt.Errorf("error generating plot: %v", err)
 	}
 	p.Title.Text = "Latency histogram"
-	p.X.Label.Text = "Latency (ms)"
+	p.X.Label.Text = fmt.Sprintf("Latency (%v resolution)", Resolution)
 	p.Y.Label.Text = "Frequency"
 
 	h, err := plotter.NewHistogram(xys, count)
@@ -67,6 +76,6 @@ func (b *Buckets) Plot(filePath string) error {
 	p.Add(h)
 
 	// Save the plot to a file. Units in inches (one inch == 72 points).
-	fmt.Fprintf(os.Stderr, "Saving latency histogram to", filePath)
+	fmt.Fprintf(os.Stderr, "Saving latency histogram to %v\n", filePath)
 	return p.Save(8, 6, filePath)
 }
