@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// 	Example that creates a histogram with 10 buckets and records an event that took 16ms (16000us).
-func ExampleLatencyTrack() {
+// ExampleLatencyTracking creates a histogram with 10 buckets and records an event that took 16ms (16000us).
+func ExampleHistogram() {
 	h := &Histogram{
 		Buckets:    make([]int, 10),
 		Resolution: time.Millisecond,
