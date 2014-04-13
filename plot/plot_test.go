@@ -10,9 +10,9 @@ import (
 // then plots a (very uninteresting) graph for it.
 func ExamplePlot() {
 	h := &latency.Histogram{
-		Buckets:    make([]int, 0),
+		Buckets:    make([]int, 10),
 		Resolution: time.Millisecond,
 	}
 	h.Record(16 * time.Millisecond)
-	Plot(h, "test.svg")
+	Plot(h, "HTTP server GET latency histogram", "test.svg")
 }

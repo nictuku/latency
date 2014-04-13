@@ -11,8 +11,7 @@ import (
 
 // Plot saves an image of the latency histogram to filePath. The extension of filePath defines
 // the format to be used - png, svg, etc.
-// TODO(nictuku): Move to a sub-package to avoid import bloat.
-func Plot(h *latency.Histogram, filePath string) error {
+func Plot(h *latency.Histogram, description, filePath string) error {
 	count := len(h.Buckets)
 	xys := make(plotter.XYs, count)
 
@@ -25,7 +24,7 @@ func Plot(h *latency.Histogram, filePath string) error {
 	if err != nil {
 		return fmt.Errorf("error generating plot: %v", err)
 	}
-	p.Title.Text = "Latency histogram"
+	p.Title.Text = description
 	p.X.Label.Text = fmt.Sprintf("Latency (%v resolution)", h.Resolution)
 	p.Y.Label.Text = "Frequency"
 
