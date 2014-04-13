@@ -1,18 +1,4 @@
-/*
-Package latency provides an easy way to create latency histograms and generate graphs.
-
-Example that creates a histogram with 10 buckets and records an event that took 16ms (16000us).
-
-b := make(Buckets, 20)
-
-b.Record(16 * time.Millisecond)
-
-b.Plot("test.svg"))
-
-20 buckets is good for tracking latency from 0us to 1s. Buckets are created in a scale of powers of
-2. Even if too few buckets are specified, new buckets will be added as needed.
-
-*/
+// Package latency provides a simple latency histogram.
 package latency
 
 import (
@@ -25,37 +11,48 @@ import (
 	"code.google.com/p/plotinum/plotter"
 )
 
-// Resolution can be changed if the latency tracking should happen at lower or right resolution than
-// the default of 1 Millisecond.
-// TODO(nictuku): Merge with Buckets.
-var Resolution = time.Millisecond
+// Histogram can track latency distributions.
+type Histogram struct {
+	// All fields are exported to allow direct usage by the plotting library.
 
-type Buckets []int
+	// Buckets where to track the latency distribution.
+	// 20 buckets are good for tracking latency from 0us to 1s.
+	// Buckets are created in a scale of powers of 2. If too few buckets are
+	// specified, new buckets will be added as needed.
+	Buckets []int
+	// Resolution of the smallest latency bucket. It must be set with
+	// a positive duration.
+	Resolution time.Duration
+}
 
-func (b *Buckets) Record(d time.Duration) {
+// Record the event in the latency histogram.
+func (h *Histogram) Record(d time.Duration) {
+	if d == 0 {
+		panic("Histogram Resolution must be set with positive time.Duration")
+	}
 	var bucket int
-	if d < Resolution {
+	if d < h.Resolution {
 		// Avoid getting to log2(0) = -Inf.
 		bucket = 0
 	} else {
-		f := float64(d / Resolution)
+		f := float64(d / h.Resolution)
 		bucket = int(math.Ceil(math.Log2(f)))
-		if len(*b) < bucket+1 {
+		if len(h.Buckets) < bucket+1 {
 			// Extend the slice.
-			*b = append(*b, make(Buckets, bucket+1-len(*b))...)
+			h.Buckets = append(h.Buckets, make([]int, bucket+1-len(h.Buckets))...)
 		}
 	}
-	(*b)[bucket]++
+	h.Buckets[bucket]++
 }
 
 // Plot saves an image of the latency histogram to filePath. The extension of filePath defines
 // the format to be used - png, svg, etc.
-func (b *Buckets) Plot(filePath string) error {
-	count := len(*b)
-
+// TODO(nictuku): Move to a sub-package to avoid import bloat.
+func (h *Histogram) Plot(filePath string) error {
+	count := len(h.Buckets)
 	xys := make(plotter.XYs, count)
 
-	for bucket, freq := range *b {
+	for bucket, freq := range h.Buckets {
 		xys[bucket].X = float64(bucket)
 		xys[bucket].Y = float64(freq)
 	}
@@ -65,15 +62,15 @@ func (b *Buckets) Plot(filePath string) error {
 		return fmt.Errorf("error generating plot: %v", err)
 	}
 	p.Title.Text = "Latency histogram"
-	p.X.Label.Text = fmt.Sprintf("Latency (%v resolution)", Resolution)
+	p.X.Label.Text = fmt.Sprintf("Latency (%v resolution)", h.Resolution)
 	p.Y.Label.Text = "Frequency"
 
-	h, err := plotter.NewHistogram(xys, count)
+	hh, err := plotter.NewHistogram(xys, count)
 	if err != nil {
 		return fmt.Errorf("error generating histogram: %v", err)
 
 	}
-	p.Add(h)
+	p.Add(hh)
 
 	// Save the plot to a file. Units in inches (one inch == 72 points).
 	fmt.Fprintf(os.Stderr, "Saving latency histogram to %v\n", filePath)

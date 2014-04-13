@@ -6,8 +6,17 @@ import (
 	"time"
 )
 
-func TestLatencyTrack(t *testing.T) {
+// 	Example that creates a histogram with 10 buckets and records an event that took 16ms (16000us).
+func ExampleLatencyTrack() {
+	h := &Histogram{
+		Buckets:    make([]int, 0),
+		Resolution: time.Millisecond,
+	}
+	h.Record(16 * time.Millisecond)
+	h.Plot("test.svg")
+}
 
+func TestLatencyTrack(t *testing.T) {
 	var tests = []struct {
 		d time.Duration
 		b int64
@@ -31,12 +40,15 @@ func TestLatencyTrack(t *testing.T) {
 		{time.Duration(1 * time.Second), 10},
 	}
 
-	f := make(Buckets, 0)
+	h := &Histogram{
+		Buckets:    make([]int, 0),
+		Resolution: time.Millisecond,
+	}
 	for _, x := range tests {
-		f.Record(x.d)
+		h.Record(x.d)
 	}
 	want := []int{1, 1, 2, 1, 10, 0, 0, 1, 0, 0, 1}
-	if !reflect.DeepEqual([]int(f), want) {
-		t.Fatalf("Bucket = %v, wanted %v", f, want)
+	if !reflect.DeepEqual([]int(h.Buckets), want) {
+		t.Fatalf("Bucket = %v, wanted %v", h.Buckets, want)
 	}
 }
